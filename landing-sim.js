@@ -483,19 +483,19 @@ function updateGuidanceControls() {
   const manual = guidance === "Manual";
   const easyPilot = guidance === "Easy Pilot";
   byId("pilotHint").textContent = easyPilot
-    ? "EASY PILOT · AUTOMATIC DESCENT & STABILIZATION · LEFT/RIGHT TO STEER"
+    ? "EASY PILOT · AUTO-STABILIZED · ARROWS STEER / ADJUST THRUST · 1–9 SET THRUST"
     : manual
-      ? "MANUAL · LEFT/RIGHT STEER · UP/DOWN OR SLIDER ADJUST THROTTLE"
+      ? "MANUAL · ARROWS STEER / ADJUST THRUST · 1–9 SET THRUST"
       : "ASSISTED LANDING ENABLED · SELECT EASY PILOT OR MANUAL TO STEER";
   byId("flightHint").innerHTML = easyPilot
-    ? "EASY PILOT · AUTOMATIC DESCENT & STABILIZATION<br>ARROW KEYS OR PAD: LEFT/RIGHT STEER"
+    ? "EASY PILOT · AUTO-STABILIZED<br>ARROWS: STEER / THRUST · 1–9: THRUST LEVEL"
     : manual
-      ? "ORBITAL APPROACH → POWERED DESCENT<br>ARROW KEYS: LEFT/RIGHT STEER · UP/DOWN THROTTLE"
+      ? "MANUAL POWERED DESCENT<br>ARROWS: STEER / THRUST · 1–9: THRUST LEVEL"
       : "ORBITAL APPROACH → POWERED DESCENT<br>SELECT EASY PILOT OR MANUAL TO STEER";
   byId("pilotControls").classList.toggle("manual-active", manual || easyPilot);
-  byId("throttle").disabled = !manual;
+  byId("throttle").disabled = !(manual || easyPilot);
   pilotButtons.forEach(button => {
-    button.disabled = !(manual || (easyPilot && ["left", "right"].includes(button.dataset.control)));
+    button.disabled = !(manual || easyPilot);
   });
   if (!manual && !easyPilot) clearControls();
 }
@@ -551,23 +551,26 @@ function step(timestamp) {
     const guidance = byId("guidance").value;
     const manual = guidance === "Manual";
     const easyPilot = guidance === "Easy Pilot";
+    const up = Number(heldControls.has("forward"));
+    const down = Number(heldControls.has("back"));
+    if (manual || easyPilot) {
+      const throttleControl = byId("throttle");
+      const realSeconds = dt / Math.max(1, Number(byId("timeRate").value));
+      const throttlePercent = clamp(Number(throttleControl.value) + (up - down) * 12 * realSeconds, 0, 100);
+      throttleControl.value = String(throttlePercent);
+      byId("throttleValue").textContent = `${Math.round(throttlePercent)}%`;
+    }
     if (manual) {
-      const up = Number(heldControls.has("forward"));
-      const down = Number(heldControls.has("back"));
       const left = Number(heldControls.has("left"));
       const right = Number(heldControls.has("right"));
       const throttleControl = byId("throttle");
-      const throttlePercent = clamp(Number(throttleControl.value) + (up - down) * 18 * dt, 0, 100);
-      throttleControl.value = String(throttlePercent);
-      byId("throttleValue").textContent = `${Math.round(throttlePercent)}%`;
-      currentThrust = throttlePercent / 100 * 8;
+      currentThrust = Number(throttleControl.value) / 100 * 8;
       attitude = lerp(attitude, (right - left) * .28, Math.min(1, .9 * dt));
       horizontalVelocity = clamp(horizontalVelocity + Math.sin(attitude) * currentThrust * dt, -55, 55);
       horizontalVelocity *= Math.exp(-.08 * dt);
       horizontalOffset = clamp(horizontalOffset + horizontalVelocity * dt, -50000, 50000);
     } else if (easyPilot) {
-      const targetSpeed = Math.max(1.6, Math.min(55, Math.sqrt(2 * 4.5 * Math.max(currentAltitude, 0))));
-      currentThrust = fuel > 0 ? clamp(1.62 + (Math.abs(velocity) - targetSpeed) * 4, 0, 8) : 0;
+      currentThrust = Number(byId("throttle").value) / 100 * 8;
       const steering = Number(heldControls.has("right")) - Number(heldControls.has("left"));
       const assistAttitude = clamp(
         steering * .16 - horizontalOffset * .000015 - horizontalVelocity * .025,
@@ -649,9 +652,15 @@ window.addEventListener("keydown", event => {
   const guidance = byId("guidance").value;
   if (!running || (guidance !== "Manual" && guidance !== "Easy Pilot")) return;
   if (event.target instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(event.target.tagName)) return;
+  if (/^[1-9]$/.test(event.key)) {
+    const throttlePercent = Number(event.key) / 9 * 100;
+    byId("throttle").value = String(throttlePercent);
+    byId("throttleValue").textContent = `${Math.round(throttlePercent)}%`;
+    event.preventDefault();
+    return;
+  }
   const control = controlKeys.get(event.key.toLowerCase());
   if (!control) return;
-  if (guidance === "Easy Pilot" && !["left", "right"].includes(control)) return;
   event.preventDefault();
   setControl(control, true);
 });

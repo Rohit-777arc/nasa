@@ -162,6 +162,7 @@ document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
   document.querySelectorAll(".tabpage").forEach(x=>x.classList.remove("active"));
   btn.classList.add("active");document.getElementById(btn.dataset.tab).classList.add("active");
+  requestAnimationFrame(()=>window.dispatchEvent(new Event("resize")));
 }));
 document.getElementById("startSim").addEventListener("click",()=>{document.querySelector('[data-tab="sim"]').click();});
 document.querySelectorAll("#sources a").forEach(a=>a.addEventListener("click",()=>{}));
