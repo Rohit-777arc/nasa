@@ -166,43 +166,6 @@ document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>
 document.getElementById("startSim").addEventListener("click",()=>{document.querySelector('[data-tab="sim"]').click();});
 document.querySelectorAll("#sources a").forEach(a=>a.addEventListener("click",()=>{}));
 
-const canvas=document.getElementById("canvas"),ctx=canvas.getContext("2d");
-function resizeCanvas(){const d=window.devicePixelRatio||1,r=canvas.getBoundingClientRect();canvas.width=r.width*d;canvas.height=r.height*d;ctx.setTransform(d,0,0,d,0,0);}
-window.addEventListener("resize",resizeCanvas);resizeCanvas();
-let running=false;
-function drawLander(y,angle,terrain,status){
-  const w=canvas.clientWidth,h=canvas.clientHeight;ctx.clearRect(0,0,w,h);
-  const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,"#01040a");g.addColorStop(1,"#101923");ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
-  ctx.fillStyle="#8ea8bd";for(let i=0;i<75;i++){ctx.globalAlpha=.15+(i%5)*.08;ctx.fillRect((i*79)%w,(i*43)%(terrain-15),1,1)}ctx.globalAlpha=1;
-  ctx.beginPath();ctx.moveTo(0,terrain);for(let x=0;x<=w;x+=14)ctx.lineTo(x,terrain+10*Math.sin(x*.025)+4*Math.sin(x*.073));ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();ctx.fillStyle="#575d63";ctx.fill();
-  ctx.save();ctx.translate(w/2,y);ctx.rotate(angle*Math.PI/180);ctx.fillStyle="#d8e3ea";ctx.fillRect(-18,-12,36,23);ctx.fillStyle="#9aabb8";ctx.fillRect(-11,-20,22,7);ctx.strokeStyle="#d8e3ea";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-14,10);ctx.lineTo(-25,22);ctx.moveTo(14,10);ctx.lineTo(25,22);ctx.stroke();ctx.restore();
-  if(status){ctx.font="900 16px system-ui";ctx.fillStyle=status==="success"?"#72f5a5":"#ff6675";ctx.fillText(status==="success"?"SOFT LANDING":"LANDING FAILED",16,25);}
-}
-function runSim(){
-  if(running)return;running=true;
-  let alt=+document.getElementById("alt").value||2500,vel=+document.getElementById("vel").value||-55,fuel=+document.getElementById("fuel").value||100,t=0;
-  const slope=metrics().slope,terrain=canvas.clientHeight-42,dt=.05;
-  function step(){
-    const burn=Math.min(8,Math.max(0,(Math.abs(vel)-2)*.13));
-    const thrust=fuel>0?burn:0; vel+=(1.62-thrust)*dt;alt+=vel*dt;fuel=Math.max(0,fuel-thrust*.008);t+=dt;
-    drawLander(terrain-(Math.max(0,alt)/2500)*(terrain-35),+document.getElementById("angle").value||12,terrain);
-    setText("clock",`00:${t.toFixed(1).padStart(4,"0")}`);setText("tAlt",`${Math.max(0,Math.round(alt))} m`);
-    setText("tVel",`${vel.toFixed(1)} m/s`);setText("tFuel",`${Math.round(fuel)}%`);setText("tSlope",`${slope.toFixed(1)}°`);setText("status","DESCENDING");
-    if(alt<=0){
-      running=false;const ok=Math.abs(vel)<=6&&slope<=12&&fuel>1;setText("status",ok?"SUCCESS":"FAILED");
-      drawLander(terrain-16,0,terrain,ok?"success":"failure");
-      setText("simresult",ok?`🟢 Touchdown achieved. Final vertical speed ${vel.toFixed(1)} m/s; slope ${slope.toFixed(1)}°.`:`🔴 Touchdown outside prototype limits. Final vertical speed ${vel.toFixed(1)} m/s; slope ${slope.toFixed(1)}°.`);
-      return;
-    }
-    if(t>90){running=false;setText("status","TIMEOUT");return;}
-    requestAnimationFrame(step);
-  }
-  setText("simresult","Descent initiated…");step();
-}
-document.getElementById("run").addEventListener("click",runSim);
-
-
-
 // V6 presentation/demo mode
 const demoOverlay=document.getElementById('demoOverlay');
 const showDemo=()=>{demoOverlay.hidden=false;};

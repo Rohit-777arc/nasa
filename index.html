@@ -156,7 +156,9 @@
             <div><span>MISSION CLOCK</span><b id="clock">00:00.0</b></div>
             <div><span>STATUS</span><b id="status">READY</b></div>
           </div>
-          <canvas id="canvas"></canvas>
+          <div id="landingScene" role="img" aria-label="Interactive three-dimensional lunar lander descent simulation">
+            <div class="landing-scene-hint">3D LANDING ENVIRONMENT <span>DRAG TO ORBIT · SCROLL TO ZOOM</span></div>
+          </div>
           <div class="telemetry">
             <div><span>ALTITUDE</span><b id="tAlt">2500 m</b></div>
             <div><span>VERTICAL SPEED</span><b id="tVel">-55 m/s</b></div>
@@ -256,6 +258,7 @@
 {"imports":{"three":"https://unpkg.com/three@0.180.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.180.0/examples/jsm/"}}
 </script>
 <script type="module" src="app.js"></script>
+<script type="module" src="landing-sim.js"></script>
 <script type="module" src="mission-dashboard.js"></script>
 </body>
 </html>
