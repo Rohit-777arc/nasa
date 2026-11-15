@@ -26,6 +26,7 @@
     <button class="tab active" data-tab="mission">MISSION</button>
     <button class="tab" data-tab="analysis">SITE ANALYSIS</button>
     <button class="tab" data-tab="sim">LANDING SIM</button>
+    <button class="tab" data-tab="lunar-mission">60-DAY MISSION</button>
     <button class="tab" data-tab="sources">NASA DATA</button>
     <button class="demo-btn" id="demoMode">▶ DEMO MODE</button>
   </nav>
@@ -167,6 +168,55 @@
       </div>
     </section>
 
+    <section class="tabpage lunar-mission" id="lunar-mission">
+      <div class="mission-heading">
+        <div>
+          <div class="section-title">ARTEMIS SURFACE OPERATIONS • SIMULATION</div>
+          <h2>60-day lunar mission</h2>
+          <p>Earth-to-Moon transfer, surface traverse, and live environmental telemetry.</p>
+        </div>
+        <div class="mission-elapsed"><span>MISSION ELAPSED</span><b id="missionElapsed">DAY 000 · 00:00:00</b></div>
+      </div>
+
+      <div class="mission-telemetry" aria-live="polite">
+        <article class="mission-metric"><span>SOLAR LIGHT POWER</span><b id="solarPower">—%</b><i><em id="solarBar"></em></i><small id="solarCondition">AWAITING SIMULATION</small></article>
+        <article class="mission-metric"><span>EARTH COMMS SIGNAL</span><b id="commsSignal">—%</b><i><em id="commsBar"></em></i><small id="commsCondition">LINE OF SIGHT: —</small></article>
+        <article class="mission-metric battery-metric"><span>ROVER BATTERY</span><b id="batteryLevel">—%</b><i><em id="batteryBar"></em></i><small id="batteryCondition">SYSTEM STANDBY</small></article>
+        <article class="mission-metric"><span>LUNAR LOCAL TIME</span><b id="lunarLocalTime">—</b><small>29.5-DAY LIGHT / DARK CYCLE</small></article>
+      </div>
+
+      <div class="mission-views">
+        <article class="panel mission-view">
+          <div class="mission-view-heading"><div><span class="section-title">FLIGHT DYNAMICS</span><h3>Earth → Moon transfer</h3></div><span class="mission-live"><i></i> LIVE GEOMETRY</span></div>
+          <div id="orbitView" role="img" aria-label="Three-dimensional Earth-to-Moon orbital transfer trajectory and Earth line-of-sight geometry"><span class="orbit-label orbit-earth-label">EARTH</span><span class="orbit-label orbit-moon-label">MOON</span></div>
+          <div class="mission-legend"><span><i class="legend-transfer"></i> TRANSFER TRAJECTORY</span><span><i class="legend-los"></i> EARTH LINE OF SIGHT</span><span id="losReadout">LOS —</span></div>
+        </article>
+        <article class="panel mission-view">
+          <div class="mission-view-heading"><div><span class="section-title">LUNAR SURFACE OPERATIONS</span><h3>Lunar rover traverse</h3></div><span class="terrain-readout" id="terrainReadout">ELEVATION —</span></div>
+          <canvas id="terrainCanvas" aria-label="Procedural lunar terrain with crater elevation contours, changing shadows, and rover route"></canvas>
+          <div class="mission-legend"><span><i class="legend-route"></i> ROVER PATH</span><span><i class="legend-sun"></i> SOLAR AZIMUTH</span><span id="sunReadout">SUN ELEVATION —</span></div>
+        </article>
+      </div>
+
+      <div class="mission-controls panel">
+        <div class="mission-transport">
+          <button type="button" class="mission-play" id="missionPlay" aria-label="Play mission simulation">▶ <span>PLAY</span></button>
+          <label for="timeWarp">TIME WARP</label>
+          <select id="timeWarp" aria-label="Mission time-warp speed">
+            <option value="1">1×</option><option value="10">10×</option><option value="100">100×</option>
+            <option value="1000">1,000×</option><option value="10000">10,000×</option>
+          </select>
+          <button type="button" class="mission-reset" id="missionReset">RESET</button>
+        </div>
+        <div class="mission-scrubber">
+          <div class="scrubber-labels"><span>DAY 0</span><span id="scrubberDay">DAY 0.0 / 60</span><span>DAY 60</span></div>
+          <input id="missionTimeline" type="range" min="0" max="60" step="0.01" value="0" aria-label="Mission timeline, 0 to 60 days">
+        </div>
+        <div class="mission-phase"><span class="phase-dot"></span><span id="missionPhase">PRE-LAUNCH</span></div>
+      </div>
+      <p class="mission-disclaimer">Illustrative simulation: terrain, solar environment, battery behavior, and communications geometry are procedurally modeled, not operational flight data.</p>
+    </section>
+
     <section class="tabpage" id="sources">
       <div class="sourcehero">
         <div>
@@ -206,5 +256,6 @@
 {"imports":{"three":"https://unpkg.com/three@0.180.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.180.0/examples/jsm/"}}
 </script>
 <script type="module" src="app.js"></script>
+<script type="module" src="mission-dashboard.js"></script>
 </body>
 </html>
