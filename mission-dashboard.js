@@ -96,6 +96,17 @@ function resizeOrbit() {
 const byId = id => document.getElementById(id);
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const lerp = (a, b, t) => a + (b - a) * t;
+const routeSites = [
+  { name: "Peak near Cabeus B", x: .542, y: .439 },
+  { name: "Haworth", x: .353, y: .574 },
+  { name: "Malapert Massif", x: .668, y: .486 },
+  { name: "Mons Mouton Plateau", x: .444, y: .349 },
+  { name: "Mons Mouton", x: .483, y: .475 },
+  { name: "Nobile Rim 1", x: .595, y: .664 },
+  { name: "Nobile Rim 2", x: .724, y: .574 },
+  { name: "de Gerlache Rim 2", x: .269, y: .448 },
+  { name: "Slater Plain", x: .518, y: .759 },
+];
 let missionDay = 0;
 let battery = 88;
 let playing = false;
@@ -263,38 +274,20 @@ function drawTerrain(day) {
   }
   terrain.restore();
 
+  const startSite = routeSites[byId("routeStart").selectedIndex];
+  const endSite = routeSites[byId("routeEnd").selectedIndex];
   const route = Array.from({ length: 15 }, (_, i) => {
     const t = i / 14;
-    const x = .12 + t * .75;
-    const y = .71 - .33 * Math.sin(t * Math.PI) + .035 * Math.sin(t * 17);
-    return { x, y };
+    const curve = Math.sin(t * Math.PI) * .13;
+    return {
+      x: lerp(startSite.x, endSite.x, t) + curve * (endSite.y - startSite.y),
+      y: lerp(startSite.y, endSite.y, t) - curve * (endSite.x - startSite.x),
+    };
   });
   const project = point => ({
     x: width * (.055 + point.x * .89),
     y: height * (.2 + point.y * .69) - elevationAt(point.x, point.y) * height * 2.15,
   });
-  terrain.save();
-  terrain.lineCap = "round";
-  terrain.lineJoin = "round";
-  terrain.strokeStyle = "rgba(255,200,87,.2)";
-  terrain.lineWidth = 6;
-  terrain.beginPath();
-  route.forEach((point, index) => {
-    const p = project(point);
-    if (!index) terrain.moveTo(p.x, p.y); else terrain.lineTo(p.x, p.y);
-  });
-  terrain.stroke();
-  terrain.strokeStyle = "#ffc857";
-  terrain.lineWidth = 1.5;
-  terrain.setLineDash([5, 4]);
-  terrain.beginPath();
-  route.forEach((point, index) => {
-    const p = project(point);
-    if (!index) terrain.moveTo(p.x, p.y); else terrain.lineTo(p.x, p.y);
-  });
-  terrain.stroke();
-  terrain.setLineDash([]);
-
   const roverProgress = clamp((day - 7) / 53, 0, 1);
   const pathPosition = roverProgress * (route.length - 1);
   const pathIndex = Math.min(route.length - 2, Math.floor(pathPosition));
@@ -303,8 +296,31 @@ function drawTerrain(day) {
     x: lerp(route[pathIndex].x, route[pathIndex + 1].x, localProgress),
     y: lerp(route[pathIndex].y, route[pathIndex + 1].y, localProgress),
   };
+  terrain.save();
+  terrain.lineCap = "round";
+  terrain.lineJoin = "round";
+  const drawPath = points => {
+    terrain.beginPath();
+    points.forEach((point, index) => {
+      const p = project(point);
+      if (!index) terrain.moveTo(p.x, p.y); else terrain.lineTo(p.x, p.y);
+    });
+    terrain.stroke();
+  };
+  terrain.strokeStyle = "rgba(255,200,87,.2)";
+  terrain.lineWidth = 6;
+  drawPath(route);
+  terrain.strokeStyle = "#ffc857";
+  terrain.lineWidth = 1.5;
+  terrain.setLineDash([5, 4]);
+  drawPath(route);
+  terrain.setLineDash([]);
+
+  terrain.strokeStyle = "#fff0a8";
+  terrain.lineWidth = 2;
+  drawPath(route.slice(0, pathIndex + 1).concat(roverPoint));
   const rover = project(roverPoint);
-  const next = project(route[pathIndex + 1]);
+  const next = project(route[Math.min(route.length - 1, pathIndex + 1)]);
   terrain.save();
   terrain.translate(rover.x, rover.y - 5);
   terrain.rotate(Math.atan2(next.y - rover.y, next.x - rover.x));
@@ -315,6 +331,15 @@ function drawTerrain(day) {
   terrain.moveTo(7, 0); terrain.lineTo(-5, -4); terrain.lineTo(-4, 4);
   terrain.closePath(); terrain.fill();
   terrain.restore();
+  for (const [site, label] of [[startSite, "START"], [endSite, "DEST"]]) {
+    const point = project(site);
+    terrain.fillStyle = "#ffc857";
+    terrain.beginPath(); terrain.arc(point.x, point.y, 3, 0, Math.PI * 2); terrain.fill();
+    terrain.fillStyle = "#fff0a8";
+    terrain.font = "700 8px ui-monospace, monospace";
+    terrain.textAlign = point.x > width * .75 ? "right" : "left";
+    terrain.fillText(`${label}: ${site.name}`, point.x + (point.x > width * .75 ? -6 : 6), point.y - 7);
+  }
   terrain.restore();
 
   const sunXScreen = width * .83;
@@ -336,9 +361,10 @@ function drawTerrain(day) {
 function batteryAtDay(day) {
   const step = .25;
   let charge = 88;
+  const solarEnabled = byId("solarChoice").value === "yes";
   for (let elapsed = 0; elapsed < day; elapsed += step) {
     const delta = Math.min(step, day - elapsed);
-    const solar = Math.max(0, Math.sin(((elapsed + delta / 2) / LUNAR_DAY) * Math.PI * 2 + .55));
+    const solar = solarEnabled ? Math.max(0, Math.sin(((elapsed + delta / 2) / LUNAR_DAY) * Math.PI * 2 + .55)) : 0;
     charge = clamp(charge + (solar * 8.5 - 2) * delta, 0, 100);
   }
   return charge;
@@ -348,11 +374,12 @@ function updateTelemetry(dayDelta = 0) {
   const solarAngle = (missionDay / LUNAR_DAY) * Math.PI * 2 + .55;
   const solarFraction = Math.max(0, Math.sin(solarAngle));
   const solarPower = Math.round(solarFraction * 100);
+  const solarEnabled = byId("solarChoice").value === "yes";
   const libration = Math.sin((missionDay / SIDEREAL_MONTH) * Math.PI * 2) * 8 * Math.PI / 180;
   const earthElevation = Math.cos(SITE_LIMB_ANGLE + libration);
   const hasLineOfSight = earthElevation > .03;
   const comms = hasLineOfSight ? Math.round(88 + 10 * earthElevation) : 0;
-  battery = clamp(battery + (solarFraction * 8.5 - 2) * dayDelta, 0, 100);
+  battery = clamp(battery + ((solarEnabled ? solarFraction * 8.5 : 0) - 2) * dayDelta, 0, 100);
 
   const totalSeconds = Math.floor(missionDay * DAY_SECONDS);
   const hours = Math.floor(totalSeconds / 3600) % 24;
@@ -361,18 +388,30 @@ function updateTelemetry(dayDelta = 0) {
   const missionNumber = Math.floor(missionDay);
   const localHours = ((missionDay / LUNAR_DAY) * 24) % 24;
   const localMinutes = Math.floor((localHours % 1) * 60);
-  const batteryLabel = battery < 20 ? "LOW POWER RESERVE" : solarFraction > .05 ? "SOLAR ARRAY " + (battery >= 99 ? "CHARGED" : "CHARGING") : "NIGHT SURVIVAL MODE";
+  const batteryLabel = battery < 20 ? "LOW POWER RESERVE" : !solarEnabled ? "BATTERY ONLY · NO SOLAR" : solarFraction > .05 ? "SOLAR ARRAY " + (battery >= 99 ? "CHARGED" : "CHARGING") : "NIGHT SURVIVAL MODE";
+  const roverProgress = clamp((missionDay - 7) / 53, 0, 1);
+  const routeStart = routeSites[byId("routeStart").selectedIndex];
+  const routeEnd = routeSites[byId("routeEnd").selectedIndex];
 
   byId("missionElapsed").textContent = `DAY ${String(missionNumber).padStart(3, "0")} · ${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   byId("solarPower").textContent = `${solarPower}%`;
   byId("solarBar").style.width = `${solarPower}%`;
-  byId("solarCondition").textContent = solarPower > 0 ? `DAYLIGHT · ${Math.max(0, 80 * Math.sin(solarAngle)).toFixed(0)}° SUN ELEVATION` : "LUNAR NIGHT · SHADOWED";
+  byId("solarCondition").textContent = !solarEnabled
+    ? `NO SOLAR ARRAYS · LIGHT AVAILABLE ${solarPower}%`
+    : solarPower > 0
+      ? `DAYLIGHT · ${Math.max(0, 80 * Math.sin(solarAngle)).toFixed(0)}° SUN ELEVATION`
+      : "LUNAR NIGHT · SHADOWED";
   byId("commsSignal").textContent = `${comms}%`;
   byId("commsBar").style.width = `${comms}%`;
   byId("commsCondition").textContent = hasLineOfSight ? "LINE OF SIGHT: CLEAR" : "LINE OF SIGHT: OCCULTED";
   byId("batteryLevel").textContent = `${Math.round(battery)}%`;
   byId("batteryBar").style.width = `${battery}%`;
   byId("batteryCondition").textContent = batteryLabel;
+  byId("roverProgress").textContent = `${Math.round(roverProgress * 100)}%`;
+  byId("roverProgressBar").style.width = `${roverProgress * 100}%`;
+  byId("roverProgressCondition").textContent = missionDay < 7
+    ? `TRAVERSE STARTS DAY 7 · ${routeStart.name} → ${routeEnd.name}`
+    : `${routeStart.name} → ${routeEnd.name}`;
   byId("lunarLocalTime").textContent = `${String(Math.floor(localHours)).padStart(2, "0")}:${String(localMinutes).padStart(2, "0")} LST`;
   byId("losReadout").textContent = hasLineOfSight ? `LOS CLEAR · ${comms}% LINK` : "LOS OCCULTED";
   byId("missionPhase").textContent = missionDay === 0 ? "PRE-LAUNCH" :
@@ -384,6 +423,9 @@ function updateTelemetry(dayDelta = 0) {
   byId("scrubberDay").textContent = `DAY ${missionDay.toFixed(1)} / 60`;
   byId("missionPlay").innerHTML = playing ? "Ⅱ <span>PAUSE</span>" : "▶ <span>PLAY</span>";
   byId("missionPlay").setAttribute("aria-label", playing ? "Pause mission simulation" : "Play mission simulation");
+  byId("routeStart").disabled = playing;
+  byId("routeEnd").disabled = playing;
+  byId("solarChoice").disabled = playing;
   drawOrbit(missionDay);
 }
 
@@ -413,7 +455,27 @@ function setMissionDay(day) {
   lastTerrainDraw = performance.now();
 }
 
+for (const id of ["routeStart", "routeEnd"]) {
+  byId(id).addEventListener("change", () => {
+    const sameSite = byId("routeStart").selectedIndex === byId("routeEnd").selectedIndex;
+    byId("routeNotice").textContent = sameSite
+      ? "Choose two different lunar sites for the rover route."
+      : `ROVER ROUTE: ${routeSites[byId("routeStart").selectedIndex].name} → ${routeSites[byId("routeEnd").selectedIndex].name}`;
+    drawTerrain(missionDay);
+    updateTelemetry();
+  });
+}
+byId("solarChoice").addEventListener("change", () => {
+  battery = batteryAtDay(missionDay);
+  updateTelemetry();
+  drawTerrain(missionDay);
+});
 byId("missionPlay").addEventListener("click", () => {
+  if (!playing && byId("routeStart").selectedIndex === byId("routeEnd").selectedIndex) {
+    byId("routeNotice").textContent = "Choose two different lunar sites before starting the rover traverse.";
+    return;
+  }
+  byId("routeNotice").textContent = `ROVER ROUTE: ${routeSites[byId("routeStart").selectedIndex].name} → ${routeSites[byId("routeEnd").selectedIndex].name}`;
   if (missionDay >= MAX_DAY) setMissionDay(0);
   playing = !playing;
   previousFrame = 0;

@@ -479,17 +479,25 @@ function clearControls() {
 }
 
 function updateGuidanceControls() {
-  const manual = byId("guidance").value === "Manual";
-  byId("pilotHint").textContent = manual
-    ? "MANUAL · LEFT/RIGHT STEER · UP/DOWN OR SLIDER ADJUST THROTTLE"
-    : "ASSISTED LANDING ENABLED · SELECT MANUAL TO PILOT";
-  byId("flightHint").innerHTML = manual
-    ? "ORBITAL APPROACH → POWERED DESCENT<br>ARROW KEYS: LEFT/RIGHT STEER · UP/DOWN THROTTLE"
-    : "ORBITAL APPROACH → POWERED DESCENT<br>SELECT MANUAL GUIDANCE TO USE ARROW KEYS";
-  byId("pilotControls").classList.toggle("manual-active", manual);
+  const guidance = byId("guidance").value;
+  const manual = guidance === "Manual";
+  const easyPilot = guidance === "Easy Pilot";
+  byId("pilotHint").textContent = easyPilot
+    ? "EASY PILOT · AUTOMATIC DESCENT & STABILIZATION · LEFT/RIGHT TO STEER"
+    : manual
+      ? "MANUAL · LEFT/RIGHT STEER · UP/DOWN OR SLIDER ADJUST THROTTLE"
+      : "ASSISTED LANDING ENABLED · SELECT EASY PILOT OR MANUAL TO STEER";
+  byId("flightHint").innerHTML = easyPilot
+    ? "EASY PILOT · AUTOMATIC DESCENT & STABILIZATION<br>ARROW KEYS OR PAD: LEFT/RIGHT STEER"
+    : manual
+      ? "ORBITAL APPROACH → POWERED DESCENT<br>ARROW KEYS: LEFT/RIGHT STEER · UP/DOWN THROTTLE"
+      : "ORBITAL APPROACH → POWERED DESCENT<br>SELECT EASY PILOT OR MANUAL TO STEER";
+  byId("pilotControls").classList.toggle("manual-active", manual || easyPilot);
   byId("throttle").disabled = !manual;
-  pilotButtons.forEach(button => { button.disabled = !manual; });
-  if (!manual) clearControls();
+  pilotButtons.forEach(button => {
+    button.disabled = !(manual || (easyPilot && ["left", "right"].includes(button.dataset.control)));
+  });
+  if (!manual && !easyPilot) clearControls();
 }
 
 function startDescent() {
@@ -540,7 +548,9 @@ function step(timestamp) {
     remaining -= dt;
     frameSeconds += dt;
     elapsed += dt;
-    const manual = byId("guidance").value === "Manual";
+    const guidance = byId("guidance").value;
+    const manual = guidance === "Manual";
+    const easyPilot = guidance === "Easy Pilot";
     if (manual) {
       const up = Number(heldControls.has("forward"));
       const down = Number(heldControls.has("back"));
@@ -554,6 +564,19 @@ function step(timestamp) {
       attitude = lerp(attitude, (right - left) * .28, Math.min(1, .9 * dt));
       horizontalVelocity = clamp(horizontalVelocity + Math.sin(attitude) * currentThrust * dt, -55, 55);
       horizontalVelocity *= Math.exp(-.08 * dt);
+      horizontalOffset = clamp(horizontalOffset + horizontalVelocity * dt, -50000, 50000);
+    } else if (easyPilot) {
+      const targetSpeed = Math.max(1.6, Math.min(55, Math.sqrt(2 * 4.5 * Math.max(currentAltitude, 0))));
+      currentThrust = fuel > 0 ? clamp(1.62 + (Math.abs(velocity) - targetSpeed) * 4, 0, 8) : 0;
+      const steering = Number(heldControls.has("right")) - Number(heldControls.has("left"));
+      const assistAttitude = clamp(
+        steering * .16 - horizontalOffset * .000015 - horizontalVelocity * .025,
+        -.16,
+        .16,
+      );
+      attitude = lerp(attitude, assistAttitude, Math.min(1, 1.3 * dt));
+      horizontalVelocity = clamp(horizontalVelocity + Math.sin(attitude) * currentThrust * dt, -18, 18);
+      horizontalVelocity *= Math.exp(-.5 * dt);
       horizontalOffset = clamp(horizontalOffset + horizontalVelocity * dt, -50000, 50000);
     } else {
       const targetSpeed = Math.max(1.6, Math.min(55, Math.sqrt(2 * 4.5 * Math.max(currentAltitude, 0))));
@@ -603,7 +626,9 @@ function step(timestamp) {
 }
 
 function setControl(control, pressed) {
-  if (byId("guidance").value !== "Manual") return;
+  const guidance = byId("guidance").value;
+  if (guidance !== "Manual" &&
+      !(guidance === "Easy Pilot" && ["left", "right"].includes(control))) return;
   if (pressed) heldControls.add(control);
   else heldControls.delete(control);
   pilotButtons.forEach(button => button.classList.toggle("active", heldControls.has(button.dataset.control)));
@@ -621,10 +646,12 @@ pilotButtons.forEach(button => {
 });
 
 window.addEventListener("keydown", event => {
-  if (!running || byId("guidance").value !== "Manual") return;
+  const guidance = byId("guidance").value;
+  if (!running || (guidance !== "Manual" && guidance !== "Easy Pilot")) return;
   if (event.target instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(event.target.tagName)) return;
   const control = controlKeys.get(event.key.toLowerCase());
   if (!control) return;
+  if (guidance === "Easy Pilot" && !["left", "right"].includes(control)) return;
   event.preventDefault();
   setControl(control, true);
 });

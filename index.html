@@ -155,7 +155,7 @@
             <label>APPROACH ANGLE (°)<input id="angle" type="number" value="12"></label>
             <label>FUEL (%)<input id="fuel" type="number" value="100"></label>
             <label>GUIDANCE
-              <select id="guidance"><option>Assisted</option><option>Manual</option></select>
+              <select id="guidance"><option>Easy Pilot</option><option>Assisted</option><option>Manual</option></select>
             </label>
             <label>TIME RATE
               <select id="timeRate">
@@ -215,10 +215,36 @@
         <div class="mission-elapsed"><span>MISSION ELAPSED</span><b id="missionElapsed">DAY 000 · 00:00:00</b></div>
       </div>
 
+      <div class="mission-route-controls panel">
+        <label>ROVER START SITE
+          <select id="routeStart">
+            <option>Peak near Cabeus B</option><option>Haworth</option><option>Malapert Massif</option>
+            <option>Mons Mouton Plateau</option><option>Mons Mouton</option><option>Nobile Rim 1</option>
+            <option>Nobile Rim 2</option><option>de Gerlache Rim 2</option><option>Slater Plain</option>
+          </select>
+        </label>
+        <span class="route-arrow" aria-hidden="true">→</span>
+        <label>ROVER DESTINATION
+          <select id="routeEnd">
+            <option>Peak near Cabeus B</option><option>Haworth</option><option selected>Malapert Massif</option>
+            <option>Mons Mouton Plateau</option><option>Mons Mouton</option><option>Nobile Rim 1</option>
+            <option>Nobile Rim 2</option><option>de Gerlache Rim 2</option><option>Slater Plain</option>
+          </select>
+        </label>
+        <label class="solar-choice">SOLAR-POWERED ROVER?
+          <select id="solarChoice" aria-label="Choose whether the rover uses solar power">
+            <option value="yes" selected>Yes · Solar arrays</option>
+            <option value="no">No · Battery only</option>
+          </select>
+        </label>
+        <span id="routeNotice" class="route-notice" aria-live="polite">Choose two sites and a power source, then play the mission.</span>
+      </div>
+
       <div class="mission-telemetry" aria-live="polite">
         <article class="mission-metric"><span>SOLAR LIGHT POWER</span><b id="solarPower">—%</b><i><em id="solarBar"></em></i><small id="solarCondition">AWAITING SIMULATION</small></article>
         <article class="mission-metric"><span>EARTH COMMS SIGNAL</span><b id="commsSignal">—%</b><i><em id="commsBar"></em></i><small id="commsCondition">LINE OF SIGHT: —</small></article>
         <article class="mission-metric battery-metric"><span>ROVER BATTERY</span><b id="batteryLevel">—%</b><i><em id="batteryBar"></em></i><small id="batteryCondition">SYSTEM STANDBY</small></article>
+        <article class="mission-metric progress-metric"><span>ROVER ROUTE PROGRESS</span><b id="roverProgress">0%</b><i><em id="roverProgressBar"></em></i><small id="roverProgressCondition">AWAITING TRAVERSE</small></article>
         <article class="mission-metric"><span>LUNAR LOCAL TIME</span><b id="lunarLocalTime">—</b><small>29.5-DAY LIGHT / DARK CYCLE</small></article>
       </div>
 
