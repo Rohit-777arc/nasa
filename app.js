@@ -50,7 +50,7 @@ moonGroup.add(halo);
 const sun=new THREE.DirectionalLight(0xffffff,2.2); sun.position.set(3,1.5,2.5); scene.add(sun);
 scene.add(new THREE.AmbientLight(0x53677c,.12));
 
-let marker=null, selected={lat:-5,lon:20};
+let marker=null, selected={lat:-85,lon:0};
 const raycaster=new THREE.Raycaster(), pointer=new THREE.Vector2();
 
 function xyzToLatLon(p){

@@ -32,15 +32,15 @@ mount.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x050a11);
-scene.fog = new THREE.Fog(0x050a11, 38, 100);
+scene.fog = new THREE.Fog(0x050a11, 55, 145);
 const camera = new THREE.PerspectiveCamera(42, 1, .1, 160);
-camera.position.set(13, 14, 24);
+camera.position.set(13, 30, 42);
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 4.5, 0);
+controls.target.set(0, 9, 0);
 controls.enableDamping = true;
 controls.dampingFactor = .07;
 controls.minDistance = 9;
-controls.maxDistance = 45;
+controls.maxDistance = 65;
 controls.maxPolarAngle = Math.PI * .48;
 controls.update();
 
@@ -71,26 +71,35 @@ scene.add(new THREE.Points(
   new THREE.PointsMaterial({ color: 0xc3d7e8, size: .17, transparent: true, opacity: .8 })
 ));
 
-const craters = Array.from({ length: 19 }, (_, index) => ({
-  x: (rand() - .5) * 52,
-  z: (rand() - .5) * 52,
-  radius: index < 5 ? 2.8 + rand() * 2.5 : .55 + rand() * 1.9,
-  depth: .24 + rand() * .52,
-  rim: .16 + rand() * .22,
-}));
+const craters = Array.from({ length: 29 }, (_, index) => {
+  let x = (rand() - .5) * 54;
+  let z = (rand() - .5) * 54;
+  if (Math.hypot(x, z) < 8) x += x < 0 ? -10 : 10;
+  return {
+    x,
+    z,
+    radius: index < 7 ? 2.8 + rand() * 3.2 : .5 + rand() * 2,
+    depth: .25 + rand() * .68,
+    rim: .18 + rand() * .34,
+    peak: index < 4 ? .12 + rand() * .18 : 0,
+  };
+});
 
 function groundHeight(x, z) {
-  let height = .16 * Math.sin(x * .24 + z * .15) + .11 * Math.cos(z * .31 - x * .2);
+  let height = .2 * Math.sin(x * .24 + z * .15) + .13 * Math.cos(z * .31 - x * .2) +
+    .055 * Math.sin(x * 1.7 + z * 1.2) * Math.cos(z * 1.35 - x * .8);
   for (const crater of craters) {
     const distance = Math.hypot(x - crater.x, z - crater.z);
-    height -= crater.depth * Math.exp(-Math.pow(distance / (crater.radius * .72), 2));
+    height -= crater.depth * Math.exp(-Math.pow(distance / (crater.radius * .7), 2));
     height += crater.rim * Math.exp(-Math.pow((distance - crater.radius * .91) / (crater.radius * .13), 2));
+    height += crater.peak * Math.exp(-Math.pow(distance / (crater.radius * .19), 2));
+    height += .075 * Math.exp(-Math.pow((distance - crater.radius * 1.35) / (crater.radius * .52), 2));
   }
   return height;
 }
 
-const grid = 112;
-const extent = 64;
+const grid = 144;
+const extent = 68;
 const vertices = [];
 const colors = [];
 const indices = [];
@@ -129,7 +138,8 @@ for (const crater of craters) {
     new THREE.MeshStandardMaterial({ color: 0x8c8981, roughness: 1 })
   );
   rim.rotation.x = Math.PI / 2;
-  rim.position.set(crater.x, y + crater.rim * .5, crater.z);
+  rim.position.set(crater.x, y, crater.z);
+  rim.castShadow = true;
   rim.receiveShadow = true;
   scene.add(rim);
 }
@@ -280,7 +290,7 @@ flameCore.visible = false;
 lander.add(flameCore);
 
 function altitudeToWorld(altitude) {
-  return .95 + Math.log1p(altitude) / Math.log1p(2500) * 16;
+  return .95 + Math.log1p(altitude) / Math.log1p(100000) * 24;
 }
 
 function render() {
@@ -304,13 +314,50 @@ resize();
 render();
 
 let running = false;
-let currentAltitude = 2500;
+let currentAltitude = 100000;
 let currentAngle = 0;
+let currentX = 0;
+let currentZ = 0;
+let velocityX = 0;
+let velocityZ = 0;
+const heldControls = new Set();
+const pilotButtons = [...document.querySelectorAll(".pilot-pad [data-control]")];
+const controlKeys = new Map([
+  ["arrowup", "forward"], ["w", "forward"],
+  ["arrowdown", "back"], ["s", "back"],
+  ["arrowleft", "left"], ["a", "left"],
+  ["arrowright", "right"], ["d", "right"],
+]);
 
 function setLanderAltitude(altitude) {
   const padY = landingSite.position.y;
-  lander.position.set(0, padY + altitudeToWorld(Math.max(0, altitude)), 0);
+  lander.position.set(currentX, padY + altitudeToWorld(Math.max(0, altitude)), currentZ);
   lander.rotation.z = currentAngle;
+}
+
+function siteLatitude() {
+  const coordinate = byId("location").textContent.match(/([\d.]+)°\s*([NS])/i);
+  if (!coordinate) return -85;
+  return Number(coordinate[1]) * (coordinate[2].toUpperCase() === "S" ? -1 : 1);
+}
+
+function updateEnvironmentTelemetry(elapsed) {
+  const illumination = Number(byId("illum").textContent.match(/[\d.]+/)?.[0]);
+  const baseSolar = Number.isFinite(illumination) ? illumination : 70;
+  const latitude = siteLatitude();
+  const slopeValue = Number(byId("slope").textContent.match(/[\d.]+/)?.[0]);
+  const slope = Number.isFinite(slopeValue) ? slopeValue : 6;
+  const solarCycle = elapsed / (29.5 * 86400) * Math.PI * 2;
+  const solar = clamp(Math.round(baseSolar + Math.sin(solarCycle) * 12), 0, 100);
+  sun.position.set(-Math.cos(solarCycle) * 28, 4 + solar / 100 * 5, Math.sin(solarCycle) * 28);
+  sun.intensity = .35 + solar / 100 * 2.85;
+  const earthElevation = 90 - Math.abs(latitude) + 6.7 * Math.sin(elapsed / (27.3 * 86400) * Math.PI * 2);
+  const hasLineOfSight = earthElevation > Math.max(0, slope * .2);
+  const comms = hasLineOfSight
+    ? clamp(Math.round(earthElevation / 25 * 100 * (1 - slope / 70)), 0, 100)
+    : 0;
+  byId("tSolar").textContent = `${solar}%`;
+  byId("tComms").textContent = `${comms}%`;
 }
 
 function updateLanderStatus(altitude, velocity, fuel, elapsed, slope) {
@@ -319,6 +366,24 @@ function updateLanderStatus(altitude, velocity, fuel, elapsed, slope) {
   byId("tVel").textContent = `${velocity.toFixed(1)} m/s`;
   byId("tFuel").textContent = `${Math.round(fuel)}%`;
   byId("tSlope").textContent = `${slope.toFixed(1)}°`;
+  byId("tOffset").textContent = `${Math.hypot(currentX, currentZ).toFixed(1)} m`;
+  updateEnvironmentTelemetry(elapsed);
+}
+
+function updateGuidanceControls() {
+  const manual = byId("guidance").value === "Manual";
+  byId("pilotHint").textContent = manual
+    ? "MANUAL · WASD / ARROWS OR D-PAD TO STEER · THROTTLE CONTROLS DESCENT"
+    : "ASSISTED LANDING ENABLED · SELECT MANUAL TO PILOT";
+  byId("pilotControls").classList.toggle("manual-active", manual);
+  byId("throttle").disabled = !manual;
+  pilotButtons.forEach(button => { button.disabled = !manual; });
+  if (!manual) clearControls();
+}
+
+function clearControls() {
+  heldControls.clear();
+  pilotButtons.forEach(button => button.classList.remove("active"));
 }
 
 function startDescent() {
@@ -327,43 +392,75 @@ function startDescent() {
   const initialVelocity = Number(byId("vel").value);
   const initialFuel = Number(byId("fuel").value);
   const angle = Number(byId("angle").value);
-  if (!Number.isFinite(altitude) || altitude <= 0 || altitude > 20000 ||
+  if (!Number.isFinite(altitude) || altitude <= 0 || altitude > 100000 ||
       !Number.isFinite(initialVelocity) || initialVelocity >= 0 ||
       !Number.isFinite(initialFuel) || initialFuel < 0 || initialFuel > 100 ||
-      !Number.isFinite(angle) || angle < 0 || angle > 45) {
-    byId("simresult").textContent = "Check configuration: altitude must be 1–20,000 m, vertical speed must be descending, fuel must be 0–100%, and approach angle must be 0–45°.";
+      !Number.isFinite(angle) || angle < 0 || angle > 45 ||
+      !Number.isFinite(Number(byId("timeRate").value))) {
+    byId("simresult").textContent = "Check configuration: altitude must be 1–100,000 m, vertical speed must be descending, fuel must be 0–100%, and approach angle must be 0–45°.";
     return;
   }
 
   running = true;
   currentAltitude = altitude;
+  currentX = 0;
+  currentZ = 0;
+  velocityX = 0;
+  velocityZ = 0;
   let velocity = initialVelocity;
   let fuel = initialFuel;
   let elapsed = 0;
   currentAngle = angle * Math.PI / 180;
   const slopeMatch = byId("slope").textContent.match(/[\d.]+/);
   const slope = slopeMatch ? Number(slopeMatch[0]) : 6;
-  const integrationStep = .2;
-  const startTime = performance.now();
+  let previousTime = performance.now();
+  clearControls();
+  setLanderAltitude(currentAltitude);
   byId("status").textContent = "DESCENDING";
-  byId("simresult").textContent = "Descent initiated…";
+  byId("simresult").textContent = byId("guidance").value === "Manual"
+    ? "Manual descent initiated. Adjust throttle and steer toward the illuminated landing pad."
+    : "Assisted high-altitude descent initiated. The guidance computer is targeting the landing pad.";
   updateLanderStatus(currentAltitude, velocity, fuel, elapsed, slope);
 
   function step(now) {
     if (!running) return;
-    const frameScale = Math.min((now - (step.previousTime || now)) / 16.67, 3);
-    step.previousTime = now;
-    const dt = integrationStep * Math.max(.25, frameScale);
-    elapsed += dt;
+    const realSeconds = Math.min(Math.max(0, (now - previousTime) / 1000), .1);
+    previousTime = now;
+    let remainingSimSeconds = realSeconds * Number(byId("timeRate").value);
+    let thrust = 0;
+    let frameScale = 0;
 
-    const desiredSpeed = Math.max(1.6, Math.min(55, Math.sqrt(2 * 4.5 * Math.max(currentAltitude, 0))));
-    const thrust = fuel > 0
-      ? clamp(1.62 + (Math.abs(velocity) - desiredSpeed) * 4, 0, 8)
-      : 0;
-    velocity += (thrust - 1.62) * dt;
-    currentAltitude += velocity * dt;
-    fuel = Math.max(0, fuel - thrust * .008 * dt);
-    currentAngle = lerpAngle(currentAngle, 0, .018 * frameScale);
+    while (remainingSimSeconds > 0 && currentAltitude > 0) {
+      const dt = Math.min(.2, remainingSimSeconds);
+      remainingSimSeconds -= dt;
+      elapsed += dt;
+      frameScale += dt;
+      const manual = byId("guidance").value === "Manual";
+      if (manual) {
+        thrust = Number(byId("throttle").value) / 100 * 8;
+        const xInput = Number(heldControls.has("right")) - Number(heldControls.has("left"));
+        const zInput = Number(heldControls.has("back")) - Number(heldControls.has("forward"));
+        velocityX = clamp((velocityX + xInput * 1.2 * dt) * Math.exp(-.32 * dt), -4, 4);
+        velocityZ = clamp((velocityZ + zInput * 1.2 * dt) * Math.exp(-.32 * dt), -4, 4);
+        currentX = clamp(currentX + velocityX * dt, -16, 16);
+        currentZ = clamp(currentZ + velocityZ * dt, -16, 16);
+        currentAngle = lerpAngle(currentAngle, xInput * .15 + (Number(heldControls.has("forward")) - Number(heldControls.has("back"))) * .1, .2 * dt);
+      } else {
+        const desiredSpeed = Math.max(1.6, Math.min(55, Math.sqrt(2 * 4.5 * Math.max(currentAltitude, 0))));
+        thrust = fuel > 0 ? clamp(1.62 + (Math.abs(velocity) - desiredSpeed) * 4, 0, 8) : 0;
+        currentAngle = lerpAngle(currentAngle, 0, .1 * dt);
+        velocityX *= Math.exp(-.7 * dt);
+        velocityZ *= Math.exp(-.7 * dt);
+        currentX = lerpAngle(currentX, 0, .35 * dt);
+        currentZ = lerpAngle(currentZ, 0, .35 * dt);
+      }
+      if (fuel <= 0) thrust = 0;
+      velocity += (thrust - 1.62) * dt;
+      currentAltitude += velocity * dt;
+      fuel = Math.max(0, fuel - thrust * .008 * dt);
+    }
+
+    currentAngle = lerpAngle(currentAngle, 0, clamp(.025 * frameScale, 0, 1));
     setLanderAltitude(Math.max(0, currentAltitude));
     flame.visible = thrust > 1.75;
     flameCore.visible = thrust > 1.75;
@@ -377,20 +474,20 @@ function startDescent() {
       running = false;
       flame.visible = false;
       flameCore.visible = false;
-      const landed = Math.abs(velocity) <= 6 && slope <= 12 && fuel > 1;
-      landingStatus = landed ? "success" : "failure";
+      const padOffset = Math.hypot(currentX, currentZ);
+      const landed = Math.abs(velocity) <= 6 && slope <= 12 && fuel > 1 && padOffset <= 3.2;
       byId("status").textContent = landed ? "SUCCESS" : "FAILED";
       byId("simresult").textContent = landed
-        ? `Soft landing achieved. Final vertical speed ${velocity.toFixed(1)} m/s; slope ${slope.toFixed(1)}°; fuel ${Math.round(fuel)}%.`
-        : `Touchdown outside prototype limits. Final vertical speed ${velocity.toFixed(1)} m/s; slope ${slope.toFixed(1)}°; fuel ${Math.round(fuel)}%.`;
+        ? `Soft landing achieved ${padOffset.toFixed(1)} m from the pad. Vertical speed ${velocity.toFixed(1)} m/s; slope ${slope.toFixed(1)}°; fuel ${Math.round(fuel)}%.`
+        : `Landing outside limits. Offset ${padOffset.toFixed(1)} m; vertical speed ${velocity.toFixed(1)} m/s; slope ${slope.toFixed(1)}°; fuel ${Math.round(fuel)}%.`;
       return;
     }
-    if (elapsed > 1800 || now - startTime > 120000) {
+    if (elapsed > 3600) {
       running = false;
       flame.visible = false;
       flameCore.visible = false;
       byId("status").textContent = "TIMEOUT";
-      byId("simresult").textContent = "Descent timed out before touchdown. Adjust the starting altitude, velocity, or fuel and retry.";
+      byId("simresult").textContent = "Descent timed out before touchdown. Increase the time rate or adjust the starting velocity, throttle, or fuel.";
       return;
     }
     requestAnimationFrame(step);
@@ -402,11 +499,50 @@ function lerpAngle(current, target, amount) {
   return current + (target - current) * amount;
 }
 
+function pressControl(control, pressed) {
+  if (byId("guidance").value !== "Manual") return;
+  if (pressed) heldControls.add(control);
+  else heldControls.delete(control);
+  pilotButtons.forEach(button => button.classList.toggle("active", heldControls.has(button.dataset.control)));
+}
+
+pilotButtons.forEach(button => {
+  button.addEventListener("pointerdown", event => {
+    event.preventDefault();
+    button.setPointerCapture(event.pointerId);
+    pressControl(button.dataset.control, true);
+  });
+  button.addEventListener("pointerup", () => pressControl(button.dataset.control, false));
+  button.addEventListener("pointercancel", () => pressControl(button.dataset.control, false));
+  button.addEventListener("lostpointercapture", () => pressControl(button.dataset.control, false));
+});
+
+window.addEventListener("keydown", event => {
+  if (event.target instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(event.target.tagName)) return;
+  const control = controlKeys.get(event.key.toLowerCase());
+  if (!control || byId("guidance").value !== "Manual") return;
+  event.preventDefault();
+  pressControl(control, true);
+});
+window.addEventListener("keyup", event => {
+  const control = controlKeys.get(event.key.toLowerCase());
+  if (control) pressControl(control, false);
+});
+window.addEventListener("blur", clearControls);
+byId("guidance").addEventListener("change", updateGuidanceControls);
+byId("throttle").addEventListener("input", () => {
+  byId("throttleValue").textContent = `${byId("throttle").value}%`;
+});
+
 byId("run").addEventListener("click", startDescent);
 byId("startSim").addEventListener("click", () => {
   const altitude = Number(byId("alt").value);
   if (Number.isFinite(altitude) && altitude > 0) currentAltitude = altitude;
+  currentX = 0;
+  currentZ = 0;
   currentAngle = 0;
   setLanderAltitude(currentAltitude);
 });
+updateGuidanceControls();
+updateEnvironmentTelemetry(0);
 setLanderAltitude(currentAltitude);

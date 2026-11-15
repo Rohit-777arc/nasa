@@ -140,13 +140,32 @@
             <label>LANDER
               <select id="lander"><option>Artemis-class demonstrator</option><option>Small robotic lander</option><option>Heavy cargo lander</option></select>
             </label>
-            <label>ALTITUDE (m)<input id="alt" type="number" value="2500"></label>
+            <label>ALTITUDE (m)<input id="alt" type="number" min="1" max="100000" value="100000"></label>
             <label>VERTICAL SPEED (m/s)<input id="vel" type="number" value="-55"></label>
             <label>APPROACH ANGLE (°)<input id="angle" type="number" value="12"></label>
             <label>FUEL (%)<input id="fuel" type="number" value="100"></label>
             <label>GUIDANCE
               <select id="guidance"><option>Assisted</option><option>Manual</option></select>
             </label>
+            <label>TIME RATE
+              <select id="timeRate">
+                <option value="1">1× real time</option><option value="5">5×</option><option value="10">10×</option>
+                <option value="25">25×</option><option value="50">50×</option><option value="100" selected>100×</option>
+                <option value="500">500×</option><option value="1000">1,000×</option>
+              </select>
+            </label>
+            <label>ENGINE THROTTLE <span id="throttleValue">50%</span>
+              <input id="throttle" type="range" min="0" max="100" value="50">
+            </label>
+          </div>
+          <div class="pilot-controls" id="pilotControls">
+            <div class="pilot-pad" aria-label="Manual directional controls">
+              <button type="button" data-control="forward" aria-label="Move forward">▲</button>
+              <button type="button" data-control="left" aria-label="Move left">◀</button>
+              <button type="button" data-control="back" aria-label="Move backward">▼</button>
+              <button type="button" data-control="right" aria-label="Move right">▶</button>
+            </div>
+            <p id="pilotHint">ASSISTED LANDING ENABLED · SELECT MANUAL TO PILOT</p>
           </div>
           <button class="primary" id="run">START DESCENT <span>→</span></button>
         </div>
@@ -157,13 +176,16 @@
             <div><span>STATUS</span><b id="status">READY</b></div>
           </div>
           <div id="landingScene" role="img" aria-label="Interactive three-dimensional lunar lander descent simulation">
-            <div class="landing-scene-hint">3D LANDING ENVIRONMENT <span>DRAG TO ORBIT · SCROLL TO ZOOM</span></div>
+            <div class="landing-scene-hint">SOUTH POLE APPROACH · 100 KM <span>LUNAR EXOSPHERE · DRAG TO ORBIT · SCROLL TO ZOOM</span></div>
           </div>
           <div class="telemetry">
-            <div><span>ALTITUDE</span><b id="tAlt">2500 m</b></div>
+            <div><span>ALTITUDE</span><b id="tAlt">100000 m</b></div>
             <div><span>VERTICAL SPEED</span><b id="tVel">-55 m/s</b></div>
             <div><span>FUEL</span><b id="tFuel">100%</b></div>
             <div><span>SLOPE</span><b id="tSlope">—</b></div>
+            <div><span>SOLAR POWER</span><b id="tSolar">—%</b></div>
+            <div><span>EARTH COMMS</span><b id="tComms">—%</b></div>
+            <div><span>PAD OFFSET</span><b id="tOffset">0.0 m</b></div>
           </div>
           <div class="simresult" id="simresult">Select a site, configure the lander and start the descent.</div>
         </div>
