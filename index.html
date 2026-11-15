@@ -135,10 +135,20 @@
     <section class="tabpage" id="sim">
       <div class="sim-layout">
         <div class="panel simpanel">
-          <div class="section-title">LANDER CONFIGURATION</div>
+          <div class="section-title">LUNAR DESTINATION & LANDER</div>
           <div class="formgrid">
-            <label>LANDER
-              <select id="lander"><option>Artemis-class demonstrator</option><option>Small robotic lander</option><option>Heavy cargo lander</option></select>
+            <label>LANDING DESTINATION
+              <select id="destination">
+                <option>Peak near Cabeus B</option>
+                <option>Haworth</option>
+                <option>Malapert Massif</option>
+                <option>Mons Mouton Plateau</option>
+                <option>Mons Mouton</option>
+                <option>Nobile Rim 1</option>
+                <option>Nobile Rim 2</option>
+                <option>de Gerlache Rim 2</option>
+                <option>Slater Plain</option>
+              </select>
             </label>
             <label>ALTITUDE (m)<input id="alt" type="number" min="1" max="100000" value="100000"></label>
             <label>VERTICAL SPEED (m/s)<input id="vel" type="number" value="-55"></label>
@@ -158,11 +168,12 @@
               <input id="throttle" type="range" min="0" max="100" value="50">
             </label>
           </div>
+          <div class="destination-info" id="destinationInfo">TARGET PEAK NEAR CABEUS B · SCHEMATIC SITE MODEL</div>
           <div class="pilot-controls" id="pilotControls">
             <div class="pilot-pad" aria-label="Manual directional controls">
-              <button type="button" data-control="forward" aria-label="Move forward">▲</button>
+              <button type="button" data-control="forward" aria-label="Increase engine throttle">▲</button>
               <button type="button" data-control="left" aria-label="Move left">◀</button>
-              <button type="button" data-control="back" aria-label="Move backward">▼</button>
+              <button type="button" data-control="back" aria-label="Decrease engine throttle">▼</button>
               <button type="button" data-control="right" aria-label="Move right">▶</button>
             </div>
             <p id="pilotHint">ASSISTED LANDING ENABLED · SELECT MANUAL TO PILOT</p>
@@ -175,8 +186,10 @@
             <div><span>MISSION CLOCK</span><b id="clock">00:00.0</b></div>
             <div><span>STATUS</span><b id="status">READY</b></div>
           </div>
-          <div id="landingScene" role="img" aria-label="Interactive three-dimensional lunar lander descent simulation">
-            <div class="landing-scene-hint">SOUTH POLE APPROACH · 100 KM <span>LUNAR EXOSPHERE · DRAG TO ORBIT · SCROLL TO ZOOM</span></div>
+          <div id="landingScene" role="img" aria-label="Two-dimensional lunar landing simulation with orbital descent trajectory">
+            <canvas id="landingCanvas" aria-label="Side view of the lunar surface, orbital descent trajectory, lander, and nine landing destinations"></canvas>
+            <div class="landing-scene-hint">LUNAR SOUTH POLE · ORBITAL APPROACH <span>SCHEMATIC TERRAIN · ARROW KEYS TO STEER IN MANUAL MODE</span></div>
+            <div class="landing-flight-hint" id="flightHint">ORBITAL APPROACH → POWERED DESCENT<br>SELECT MANUAL GUIDANCE TO STEER WITH ARROW KEYS</div>
           </div>
           <div class="telemetry">
             <div><span>ALTITUDE</span><b id="tAlt">100000 m</b></div>
